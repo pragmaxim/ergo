@@ -309,14 +309,16 @@ class ErgoMiner(ergoSettings: ErgoSettings,
           }
           candidateGenerating = false
         } else {
-          log.info("Generating new candidate requested by miner")
+          val start = System.currentTimeMillis()
           (readersHolderRef ? GetReaders).mapTo[Readers]
             .onComplete {
               case Success(Readers(h, s: UtxoStateReader, m, _)) =>
                 generateCandidate(h, m, s, publicKeyOpt.get, txsToInclude) match {
                   case Some(Success(candidate)) =>
+                    log.info(s"Generated new candidate requested by miner in ${System.currentTimeMillis() - start} ms")
                     msgSender.foreach(_ ! StatusReply.success(candidate.externalVersion))
                   case Some(Failure(ex)) =>
+                    log.error("Failed to generate new candidate", ex)
                     msgSender.foreach(_ ! StatusReply.error(ex))
                   case None =>
                     log.warn("Can not generate block candidate: chain not synced (maybe last block not fully applied yet")
